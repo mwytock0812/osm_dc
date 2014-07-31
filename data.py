@@ -5,83 +5,6 @@ import pprint
 import re
 import codecs
 import json
-"""
-Your task is to wrangle the data and transform the shape of the data
-into the model we mentioned earlier. The output should be a list of dictionaries
-that look like this:
-
-{
-"id": "2406124091",
-"type: "node",
-"visible":"true",
-"created": {
-          "version":"2",
-          "changeset":"17206049",
-          "timestamp":"2013-08-03T16:43:42Z",
-          "user":"linuxUser16",
-          "uid":"1219059"
-        },
-"pos": [41.9757030, -87.6921867],
-"address": {
-          "housenumber": "5157",
-          "postcode": "60625",
-          "street": "North Lincoln Ave"
-        },
-"amenity": "restaurant",
-"cuisine": "mexican",
-"name": "La Cabana De Don Luis",
-"phone": "1 (773)-271-5176"
-}
-
-You have to complete the function 'shape_element'.
-We have provided a function that will parse the map file, and call the function with the element
-as an argument. You should return a dictionary, containing the shaped data for that element.
-We have also provided a way to save the data in a file, so that you could use
-mongoimport later on to import the shaped data into MongoDB. You could also do some cleaning
-before doing that, like in the previous exercise, but for this exercise you just have to
-shape the structure.
-
-In particular the following things should be done:
-- you should process only 2 types of top level tags: "node" and "way"
-- all attributes of "node" and "way" should be turned into regular key/value pairs, except:
-    - attributes in the CREATED array should be added under a key "created"
-    - attributes for latitude and longitude should be added to a "pos" array,
-      for use in geospacial indexing. Make sure the values inside "pos" array are floats
-      and not strings. 
-- if second level tag "k" value contains problematic characters, it should be ignored
-- if second level tag "k" value starts with "addr:", it should be added to a dictionary "address"
-- if second level tag "k" value does not start with "addr:", but contains ":", you can process it
-  same as any other tag.
-- if there is a second ":" that separates the type/direction of a street,
-  the tag should be ignored, for example:
-
-<tag k="addr:housenumber" v="5158"/>
-<tag k="addr:street" v="North Lincoln Avenue"/>
-<tag k="addr:street:name" v="Lincoln"/>
-<tag k="addr:street:prefix" v="North"/>
-<tag k="addr:street:type" v="Avenue"/>
-<tag k="amenity" v="pharmacy"/>
-
-  should be turned into:
-
-{...
-"address": {
-    "housenumber": 5158,
-    "street": "North Lincoln Avenue"
-}
-"amenity": "pharmacy",
-...
-}
-
-- for "way" specifically:
-
-  <nd ref="305896090"/>
-  <nd ref="1719825889"/>
-
-should be turned into
-"node_ref": ["305896090", "1719825889"]
-"""
-
 
 lower = re.compile(r'^([a-z]|_)*$')
 lower_colon = re.compile(r'^([a-z]|_)*:([a-z]|_)*$')
@@ -91,31 +14,34 @@ CREATED = [ "version", "changeset", "timestamp", "user", "uid"]
 
 
 def format_valid(key):
+    """Return False if problem characters in address key."""
     if problemchars.match(key) == None:
         return True
     else:
         return False
 
 def shape_element(element):
+    """Return a JSON-like dictionary of each top-level XML tag,
+    element.
+    """
     node = {}
     if element.tag == "node" or element.tag == "way":
+        # Because 'type' already exists in data use 'elment_type'.
+        node["element_type"] = element.tag
         node["created"] = {}
-        # Store all top-level attributes
+
+        # Store 'created', 'pos', and all other top-level attributes.
         for attr in element.attrib:
-            # IF attribute in CREATED, k = 'created'
             if attr in CREATED:
-                node['created'].update({attr : element.get(attr)})
-            # IF lat or lon
+                node["created"].update({attr : element.get(attr)})
             elif attr == 'lat' or attr == 'lon':
                 lat = float(element.get('lat'))
                 lon = float(element.get('lon'))
-                node['pos'] = [lat, lon]
-            # ELSE all attributes as k:v pairs
+                node["pos"] = [lat, lon]
             else:
                 node[attr] = element.get(attr)
         
-        # Store all 2nd level attributes
-        ## Build address document
+        # Store 'address' key and all other 2nd-level attributes.
         tags = element.findall("tag")
         if len(tags) > 0:
             node["address"] = {}
@@ -123,32 +49,67 @@ def shape_element(element):
                 k = tag.attrib['k']
                 v = tag.attrib['v']
                 if format_valid(k):
+                    # Store tags formatted "addr:"
                     if k[:4] == "addr" and k.find(":", 5) == -1:
                         node["address"].update({k[5:] : v})
-                    elif k[:4] != "addr" and ":" in k:
+                    # Store TIGER-formatted tags using "name:"
+                    elif k == "name" and element.tag == "way":
+                        node["address"].update({"street" : v})
+                    # Ignore entries with 'tiger' and 'source:HFCS'.
+                    elif re.search(r'(tiger)[:_]', k) or re.search(r'(source:HFCS)', k):
+                        pass
+                    else:
                         node[k] = v
+            if len(node["address"]) == 0:
+                del node["address"]
 
-        # Build node_ref document
-        ## Try a find_all for "nd" tags
-        node_ref_list = []
-        for tag in element.findall("nd"):
-            ref = tag.attrib['ref']
-            node_ref_list.append(ref)
-        node["node_ref"] = node_ref_list
-        pprint.pprint(node)
+        # Build node_ref document.
+        if element.find("nd") != None:
+            node_ref_list = []
+            for tag in element.findall("nd"):
+                ref = tag.attrib['ref']
+                node_ref_list.append(ref)
+            node["node_refs"] = node_ref_list
         return node
     else:
         return None
 
+def clean_streets(element):
+    """Return an element with cleaned street names given a JSON-
+    like dictionary."""
+    mapping = { r'\b([Ss][Tt])(\.|\b)': "Street",
+            r'\b[Ss][Tt][Rr][Ee][Ee][Tt]\b' : "Street",
+            r'\b([Rr][Dd])(\.|\b)': "Road",
+            r'\b([Aa][Vv][Ee])(\.|\b)': "Avenue",
+            r'\b([Dd][Rr])(\.|\b)': "Drive",
+            r'\b([Pp][Ll])(\.|\b)' : "Place",
+            r'\b[Ss]\.?[Ww](\.?|\b)' : "SW",
+            r'\b[Ss][Oo][Uu][Tt][Hh][Ww][Ee][Ss][Tt]\b' : "SW",
+            r'\b[Nn]\.?[Ww](\.?|\b)' : "NW",
+            r'\b[Nn][Oo][Rr][Tt][Hh][Ww][Ee][Ss][Tt]\b' : "NW",
+            r'\b[Ss]\.?[Ee](\.?|\b)' : "SE",
+            r'\b[Ss][Oo][Uu][Tt][Hh][Ee][Aa][Ss][Tt]\b' : "SE",
+            r'\b[Ss]\.?[Ww](\.?|\b)' : "NE",
+            r'\b[Nn][Oo][Rr][Tt][Hh][Ee][Aa][Ss][Tt]\b' : "NE"}
+    try: # Try...except to avoid KeyError
+        street = element["address"]["street"]
+        for key, value in mapping.iteritems():
+            street = re.sub(key, value, street)
+        element["address"]["street"] = street
+        return element
+    except:
+        return element
 
 def process_map(file_in, pretty = False):
-    # You do not need to change this file
+    """Return a shaped and cleaned JSON file given OSM XML."""
     file_out = "{0}.json".format(file_in)
     data = []
     with codecs.open(file_out, "w") as fo:
         for _, element in ET.iterparse(file_in):
-            el = shape_element(element)
+            el = shape_element(element) # Shape element
             if el:
+                el = clean_streets(el) # Clean element
+                pprint.pprint(el)
                 data.append(el)
                 if pretty:
                     fo.write(json.dumps(el, indent=2)+"\n")
@@ -156,32 +117,5 @@ def process_map(file_in, pretty = False):
                     fo.write(json.dumps(el) + "\n")
     return data
 
-def test():
-
-    data = process_map('example.osm', True)
-    #pprint.pprint(data)
-    assert data[0] == {
-                        "id": "261114295", 
-                        "visible": "true", 
-                        "type": "node", 
-                        "pos": [
-                          41.9730791, 
-                          -87.6866303
-                        ], 
-                        "created": {
-                          "changeset": "11129782", 
-                          "user": "bbmiller", 
-                          "version": "7", 
-                          "uid": "451048", 
-                          "timestamp": "2012-03-28T18:31:23Z"
-                        }
-                      }
-    assert data[-1]["address"] == {
-                                    "street": "West Lexington St.", 
-                                    "housenumber": "1412"
-                                      }
-    assert data[-1]["node_refs"] == [ "2199822281", "2199822390",  "2199822392", "2199822369", 
-                                    "2199822370", "2199822284", "2199822281"]
-
 if __name__ == "__main__":
-    test()
+    process_map("dc.osm")
