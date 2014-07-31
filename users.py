@@ -3,34 +3,24 @@
 import xml.etree.ElementTree as ET
 import pprint
 import re
-"""
-Your task is to explore the data a bit more.
-The first task is a fun one - find out how many unique users
-have contributed to the map in this particular area!
-
-The function process_map should return a set of unique user IDs ("uid")
-"""
 
 def get_user(element):
-    return
+    """Return user ID for an element."""
+    uid = element.attrib['uid']
+    return uid
 
 
-def process_map(filename):
+def unique_users(filename):
+    """Return a set of unique user IDs (uids)
+    **Formerly process_map(filename)**
+    """
     users = set()
     for event, element in ET.iterparse(filename):
         if element.tag in ['node', 'way', 'relation']:
-            uid = element.attrib['uid']
-            users.add(uid)
+            users.add(get_user(element))
     return users
 
-
-def test():
-
-    users = process_map('example.osm')
-    pprint.pprint(users)
-    assert len(users) == 6
-
-
-
 if __name__ == "__main__":
-    test()
+    users = unique_users("sampled_dc.osm")
+    pprint.pprint(users)
+    print "Unique users: %i" % len(users)
