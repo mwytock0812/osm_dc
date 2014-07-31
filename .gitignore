@@ -57,9 +57,10 @@ Thumbs.db
 Network Trash Folder
 Temporary Items
 
-# Large dc.osm file #
-#####################
+# Large XML/JSON files #
+########################
 dc.osm
+dc.json
 
 # Compiled python modules #
 ###########################
