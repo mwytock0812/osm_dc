@@ -6,10 +6,10 @@ import codecs
 
 def sample_xml(infile, header_len = None, fetch_num = 15):
     """Writes a smaller xml file sampling only fetch_num """
-
     print "Copying first %i lines of infile as header" % header_len
-    # Use codecs for utf-8 to avoid write errors
+    # Use codecs for utf-8 to avoid write errors.
     outfile = codecs.open("sampled_" + infile, "w", "utf-8")
+    # Copy XML header to outfile.
     if type(header_len) == type(1):
         i = 0
         reader = codecs.open(infile, "r", "utf-8")
@@ -18,6 +18,7 @@ def sample_xml(infile, header_len = None, fetch_num = 15):
             outfile.write(line)
             i += 1
     
+    # Write XML elements of interest to outfile.
     print "Finding first %i elements of interest" % fetch_num
     element_list = ["node", "way", "relation"]
     for element in element_list:
@@ -33,15 +34,14 @@ def sample_xml(infile, header_len = None, fetch_num = 15):
                 print "Parsed %i elements for \"%s\" tag" % (counter, element)
                 break
     
-    # Write appropriate tail
+    # Write appropriate tail.
     print "Writing closing xml tag"
     outfile.write(u'</osm>')
     outfile.close()
-
     print "Finished parsing infile"      
             
 def prettify(elem):
-    """Return a pretty-printed XML string for the Element"""
+    """Return a pretty-printed XML string of elem."""
     import xml.dom.minidom as minidom
 
     rough_string = ET.tostring(elem, 'utf-8')
