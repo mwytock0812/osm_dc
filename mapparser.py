@@ -4,12 +4,10 @@ import xml.etree.ElementTree as ET
 import pprint
 
 def count_tags(filename):
-    """Return a dictionary counting number of top-level tags.
-
-    Dictionary Format:
-    {tag_name : count}
+    """Return a dictionary of top-level tags and their counts.
+    Dictionary Format: {tag_name : count}
     """
-    # Initialize ouput dict. Build and root tree.
+    # Initialize ouput dict. Build and root the tree.
     tags = {}
     tree = ET.parse(filename)
     root = tree.getroot()
@@ -29,5 +27,5 @@ def print_tags(osmfile):
     pprint.pprint(tags)
 
 if __name__ == "__main__":
-    OSMFILE = "sampled_dc.osm"
+    OSMFILE = "dc.osm"
     print_tags(OSMFILE)
