@@ -1,28 +1,36 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 import xml.etree.cElementTree as ET
 from collections import defaultdict
 import re
 import pprint
+import codecs
 
-# Working regex for street street_re = re.compile(r'\b([Ss]t)(\.|\b)')
 street_type_re = re.compile(r'\b\S+\.?$', re.IGNORECASE)
 
 expected = ["Street", "Avenue", "Boulevard", "Drive", "Court", "Place",
-            "Square", "Lane", "Road", "Trail", "Parkway", "Commons"]
+            "Square", "Lane", "Road", "Trail", "Parkway", "Commons",
+            "SW", "NW", "SE", "NE"]
 
-mapping = { r'\b([Ss]t)(\.|\b)': "Street",
-            r'\b([Rr]d)(\.|\b)': "Road",
-            r'\b([Aa]ve)(\.|\b)': "Avenue",
-            r'\b([Dd]r)(\.|\b)': "Drive"
+mapping = { r'\b([Ss][Tt])(\.|\b)': "Street",
+            r'\b[Ss][Tt][Rr][Ee][Ee][Tt]\b' : "Street",
+            r'\b([Rr][Dd])(\.|\b)': "Road",
+            r'\b([Aa][Vv][Ee])(\.|\b)': "Avenue",
+            r'\b([Dd][Rr])(\.|\b)': "Drive",
+            r'\b([Pp][Ll])(\.|\b)' : "Place",
+            r'\b[Ss]\.?[Ww](\.?|\b)' : "SW",
+            r'\b[Ss][Oo][Uu][Tt][Hh][Ww][Ee][Ss][Tt]\b' : "SW",
+            r'\b[Nn]\.?[Ww](\.?|\b)' : "NW",
+            r'\b[Nn][Oo][Rr][Tt][Hh][Ww][Ee][Ss][Tt]\b' : "NW",
+            r'\b[Ss]\.?[Ee](\.?|\b)' : "SE",
+            r'\b[Ss][Oo][Uu][Tt][Hh][Ee][Aa][Ss][Tt]\b' : "SE",
+            r'\b[Ss]\.?[Ww](\.?|\b)' : "NE",
+            r'\b[Nn][Oo][Rr][Tt][Hh][Ee][Aa][Ss][Tt]\b' : "NE"
             }
 
 def audit_street_type(street_types, street_name):
     """Add street_type to street_types dictionary if not in expected.
-
-    Format:
-    {street_type : set(street_name)}
+    Format: {street_type : set(street_name)}
     """
     m = street_type_re.search(street_name)
     if m:
@@ -36,7 +44,7 @@ def is_street_name(elem):
 
 
 def audit(osmfile):
-    """Return a list of street names"""
+    """Return a list of street names not in expected."""
     osm_file = open(osmfile, "r")
     street_types = defaultdict(set)
     for event, elem in ET.iterparse(osm_file, events=("start",)):
@@ -56,9 +64,7 @@ def update_name(name, mapping):
             return new_name
 
 def print_audit(osmfile):
-    """Pretty print the st_types dictionary.
-    Print name suggestions
-    """
+    """Pretty print the st_types dictionary and suggested changes."""
     st_types = audit(osmfile)
     pprint.pprint(dict(st_types))
 
@@ -67,7 +73,6 @@ def print_audit(osmfile):
             better_name = update_name(name, mapping)
             print name, "=>", better_name
 
-
 if __name__ == '__main__':
-    OSMFILE = "sampled_dc.osm"
+    OSMFILE = "dc.osm"
     print_audit(OSMFILE)
