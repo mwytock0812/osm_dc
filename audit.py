@@ -12,21 +12,23 @@ expected = ["Street", "Avenue", "Boulevard", "Drive", "Court", "Place",
             "Square", "Lane", "Road", "Trail", "Parkway", "Commons",
             "SW", "NW", "SE", "NE"]
 
+
 mapping = { r'\b([Ss][Tt])(\.|\b)': "Street",
-            r'\b[Ss][Tt][Rr][Ee][Ee][Tt]\b' : "Street",
+            r'\b[Ss][Tt][Rr][Ee][Ee][Tt]\b': "Street",
             r'\b([Rr][Dd])(\.|\b)': "Road",
             r'\b([Aa][Vv][Ee])(\.|\b)': "Avenue",
             r'\b([Dd][Rr])(\.|\b)': "Drive",
-            r'\b([Pp][Ll])(\.|\b)' : "Place",
-            r'\b[Ss]\.?[Ww](\.?|\b)' : "SW",
-            r'\b[Ss][Oo][Uu][Tt][Hh][Ww][Ee][Ss][Tt]\b' : "SW",
-            r'\b[Nn]\.?[Ww](\.?|\b)' : "NW",
-            r'\b[Nn][Oo][Rr][Tt][Hh][Ww][Ee][Ss][Tt]\b' : "NW",
-            r'\b[Ss]\.?[Ee](\.?|\b)' : "SE",
-            r'\b[Ss][Oo][Uu][Tt][Hh][Ee][Aa][Ss][Tt]\b' : "SE",
-            r'\b[Ss]\.?[Ww](\.?|\b)' : "NE",
-            r'\b[Nn][Oo][Rr][Tt][Hh][Ee][Aa][Ss][Tt]\b' : "NE"
+            r'\b([Pp][Ll])(\.|\b)': "Place",
+            r'\b[Ss]\.?[Ww](\.?|\b)': "SW",
+            r'\b[Ss][Oo][Uu][Tt][Hh][Ww][Ee][Ss][Tt]\b': "SW",
+            r'\b[Nn]\.?[Ww](\.?|\b)': "NW",
+            r'\b[Nn][Oo][Rr][Tt][Hh][Ww][Ee][Ss][Tt]\b': "NW",
+            r'\b[Ss]\.?[Ee](\.?|\b)': "SE",
+            r'\b[Ss][Oo][Uu][Tt][Hh][Ee][Aa][Ss][Tt]\b': "SE",
+            r'\b[Ss]\.?[Ww](\.?|\b)': "NE",
+            r'\b[Nn][Oo][Rr][Tt][Hh][Ee][Aa][Ss][Tt]\b': "NE"
             }
+
 
 def audit_street_type(street_types, street_name):
     """Add street_type to street_types dictionary if not in expected.
@@ -37,6 +39,7 @@ def audit_street_type(street_types, street_name):
         street_type = m.group()
         if street_type not in expected:
             street_types[street_type].add(street_name)
+
 
 def is_street_name(elem):
     """Return ET element if it is a street."""
@@ -62,6 +65,7 @@ def update_name(name, mapping):
         if re.search(key, name):
             new_name = re.sub(key, value, name)
             return new_name
+
 
 def print_audit(osmfile):
     """Pretty print the st_types dictionary and suggested changes."""
