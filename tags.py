@@ -8,6 +8,7 @@ lower = re.compile(r'^([a-z]|_)*$')
 lower_colon = re.compile(r'^([a-z]|_)*:([a-z]|_)*$')
 problemchars = re.compile(r'[=\+/&<>;\'"\?%#$@\,\. \t\r\n]')
 
+
 def key_type(element, keys):
     """Update a dictionary counting the number of tag attributes
     in an ET element that contain characters of interest.
@@ -23,6 +24,7 @@ def key_type(element, keys):
         else:
             keys['other'] += 1
     return keys
+
 
 def process_map(filename):
     """Return the keys dictionary after parsing the whole XML file."""
